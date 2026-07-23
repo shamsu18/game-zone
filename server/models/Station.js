@@ -1,24 +1,34 @@
-import mongoose from 'mongoose';
+import { DataTypes, Model } from 'sequelize';
+import sequelize from '../config/db.js';
 
-const stationSchema = new mongoose.Schema(
+class Station extends Model {}
+
+Station.init(
   {
-    name: { type: String, required: true, trim: true },
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    name: { type: DataTypes.STRING, allowNull: false },
     type: {
-      type: String,
-      enum: ['PS5', 'PC', 'VR', 'Pool', 'Snooker', 'Other'],
-      required: true,
+      type: DataTypes.ENUM('PS5', 'PC', 'VR', 'Pool', 'Snooker', 'Other'),
+      allowNull: false,
     },
-    image: { type: String, default: '' },
-    pricePerHour: { type: Number, required: true, min: 0 },
+    image: { type: DataTypes.STRING, defaultValue: '' },
+    pricePerHour: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      validate: { min: 0 },
+    },
     status: {
-      type: String,
-      enum: ['active', 'maintenance'],
-      default: 'active',
+      type: DataTypes.ENUM('active', 'maintenance'),
+      defaultValue: 'active',
     },
-    description: { type: String, default: '' },
+    description: { type: DataTypes.TEXT, defaultValue: '' },
   },
-  { timestamps: true }
+  {
+    sequelize,
+    modelName: 'Station',
+    tableName: 'stations',
+    timestamps: true,
+  }
 );
 
-const Station = mongoose.model('Station', stationSchema);
 export default Station;

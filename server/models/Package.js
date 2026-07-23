@@ -1,16 +1,28 @@
-import mongoose from 'mongoose';
+import { DataTypes, Model } from 'sequelize';
+import sequelize from '../config/db.js';
 
-const packageSchema = new mongoose.Schema(
+class Package extends Model {}
+
+Package.init(
   {
-    name: { type: String, required: true, trim: true },
-    price: { type: Number, required: true, min: 0 },
-    durationHours: { type: Number, required: true, min: 0 },
-    description: { type: String, default: '' },
-    discountPercent: { type: Number, default: 0, min: 0, max: 100 },
-    active: { type: Boolean, default: true },
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    name: { type: DataTypes.STRING, allowNull: false },
+    price: { type: DataTypes.INTEGER, allowNull: false, validate: { min: 0 } },
+    durationHours: { type: DataTypes.INTEGER, allowNull: false, validate: { min: 0 } },
+    description: { type: DataTypes.TEXT, defaultValue: '' },
+    discountPercent: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+      validate: { min: 0, max: 100 },
+    },
+    active: { type: DataTypes.BOOLEAN, defaultValue: true },
   },
-  { timestamps: true }
+  {
+    sequelize,
+    modelName: 'Package',
+    tableName: 'packages',
+    timestamps: true,
+  }
 );
 
-const Package = mongoose.model('Package', packageSchema);
 export default Package;

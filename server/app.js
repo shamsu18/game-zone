@@ -15,6 +15,7 @@ import dashboardRoutes from './routes/dashboardRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import { notFound, errorHandler } from './middleware/error.js';
+import { serializeResponses } from './utils/serialize.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -30,6 +31,9 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
+
+// Map every response's numeric `id` to `_id` for frontend compatibility
+app.use(serializeResponses);
 
 // Static uploads (local storage MVP)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

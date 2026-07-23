@@ -1,5 +1,5 @@
 import asyncHandler from 'express-async-handler';
-import Settings from '../models/Settings.js';
+import { Settings } from '../models/index.js';
 
 // @desc    Get site settings (public)
 // @route   GET /api/settings
@@ -15,7 +15,6 @@ export const getSettings = asyncHandler(async (req, res) => {
 export const updateSettings = asyncHandler(async (req, res) => {
   const settings = await Settings.getSingleton();
 
-  // Merge only known top-level fields
   const fields = [
     'siteName',
     'logoUrl',
@@ -31,10 +30,11 @@ export const updateSettings = asyncHandler(async (req, res) => {
     'galleryImages',
   ];
 
+  const updates = {};
   fields.forEach((f) => {
-    if (req.body[f] !== undefined) settings[f] = req.body[f];
+    if (req.body[f] !== undefined) updates[f] = req.body[f];
   });
 
-  await settings.save();
+  await settings.update(updates);
   res.json(settings);
 });

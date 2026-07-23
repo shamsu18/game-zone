@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import asyncHandler from 'express-async-handler';
-import User from '../models/User.js';
+import { User } from '../models/index.js';
 
 // Verifies the JWT and attaches the current user to req.user
 export const protect = asyncHandler(async (req, res, next) => {
@@ -18,7 +18,7 @@ export const protect = asyncHandler(async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
+    const user = await User.findByPk(decoded.id);
     if (!user) {
       res.status(401);
       throw new Error('User no longer exists');

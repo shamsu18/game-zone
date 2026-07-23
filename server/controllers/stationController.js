@@ -1,20 +1,19 @@
 import asyncHandler from 'express-async-handler';
-import Station from '../models/Station.js';
+import { Station } from '../models/index.js';
 
 // @desc    Get all stations (public sees active only unless ?all=true from admin)
 // @route   GET /api/stations
 // @access  Public
 export const getStations = asyncHandler(async (req, res) => {
-  const filter = {};
-  const isPrivileged =
-    req.user && ['admin', 'staff'].includes(req.user.role);
+  const where = {};
+  const isPrivileged = req.user && ['admin', 'staff'].includes(req.user.role);
 
   if (!isPrivileged || req.query.all !== 'true') {
-    filter.status = 'active';
+    where.status = 'active';
   }
-  if (req.query.type) filter.type = req.query.type;
+  if (req.query.type) where.type = req.query.type;
 
-  const stations = await Station.find(filter).sort({ createdAt: -1 });
+  const stations = await Station.findAll({ where, order: [['createdAt', 'DESC']] });
   res.json(stations);
 });
 
@@ -22,7 +21,7 @@ export const getStations = asyncHandler(async (req, res) => {
 // @route   GET /api/stations/:id
 // @access  Public
 export const getStation = asyncHandler(async (req, res) => {
-  const station = await Station.findById(req.params.id);
+  const station = await Station.findByPk(req.params.id);
   if (!station) {
     res.status(404);
     throw new Error('Station not found');
@@ -42,14 +41,12 @@ export const createStation = asyncHandler(async (req, res) => {
 // @route   PUT /api/stations/:id
 // @access  Admin/Staff
 export const updateStation = asyncHandler(async (req, res) => {
-  const station = await Station.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
+  const station = await Station.findByPk(req.params.id);
   if (!station) {
     res.status(404);
     throw new Error('Station not found');
   }
+  await station.update(req.body);
   res.json(station);
 });
 
@@ -57,7 +54,7 @@ export const updateStation = asyncHandler(async (req, res) => {
 // @route   PATCH /api/stations/:id/toggle-status
 // @access  Admin/Staff
 export const toggleStationStatus = asyncHandler(async (req, res) => {
-  const station = await Station.findById(req.params.id);
+  const station = await Station.findByPk(req.params.id);
   if (!station) {
     res.status(404);
     throw new Error('Station not found');
@@ -71,10 +68,11 @@ export const toggleStationStatus = asyncHandler(async (req, res) => {
 // @route   DELETE /api/stations/:id
 // @access  Admin/Staff
 export const deleteStation = asyncHandler(async (req, res) => {
-  const station = await Station.findByIdAndDelete(req.params.id);
+  const station = await Station.findByPk(req.params.id);
   if (!station) {
     res.status(404);
     throw new Error('Station not found');
   }
+  await station.destroy();
   res.json({ message: 'Station deleted' });
 });

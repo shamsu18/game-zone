@@ -1,23 +1,27 @@
-import mongoose from 'mongoose';
+import { DataTypes, Model } from 'sequelize';
+import sequelize from '../config/db.js';
 
-const tournamentSchema = new mongoose.Schema(
+class Tournament extends Model {}
+
+Tournament.init(
   {
-    title: { type: String, required: true, trim: true },
-    description: { type: String, default: '' },
-    date: { type: Date, required: true },
-    entryFee: { type: Number, default: 0, min: 0 },
-    bannerImage: { type: String, default: '' },
-    participants: [
-      { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    ],
+    id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+    title: { type: DataTypes.STRING, allowNull: false },
+    description: { type: DataTypes.TEXT, defaultValue: '' },
+    date: { type: DataTypes.DATE, allowNull: false },
+    entryFee: { type: DataTypes.INTEGER, defaultValue: 0, validate: { min: 0 } },
+    bannerImage: { type: DataTypes.STRING, defaultValue: '' },
     status: {
-      type: String,
-      enum: ['upcoming', 'ongoing', 'finished'],
-      default: 'upcoming',
+      type: DataTypes.ENUM('upcoming', 'ongoing', 'finished'),
+      defaultValue: 'upcoming',
     },
   },
-  { timestamps: true }
+  {
+    sequelize,
+    modelName: 'Tournament',
+    tableName: 'tournaments',
+    timestamps: true,
+  }
 );
 
-const Tournament = mongoose.model('Tournament', tournamentSchema);
 export default Tournament;

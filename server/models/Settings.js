@@ -1,55 +1,50 @@
-import mongoose from 'mongoose';
+import { DataTypes, Model } from 'sequelize';
+import sequelize from '../config/db.js';
 
-// Single-document collection holding editable site-wide content.
-const settingsSchema = new mongoose.Schema(
+// Single-row table holding editable site-wide content (id is always 1).
+class Settings extends Model {
+  // Convenience: always work with the single settings row.
+  static async getSingleton() {
+    let doc = await this.findByPk(1);
+    if (!doc) doc = await this.create({ id: 1 });
+    return doc;
+  }
+}
+
+Settings.init(
   {
-    siteName: { type: String, default: 'GameZone BD' },
-    logoUrl: { type: String, default: '' },
-    contactPhone: { type: String, default: '' },
-    contactEmail: { type: String, default: '' },
-    address: { type: String, default: '' },
-    openingHours: { type: String, default: '10:00 AM – 11:00 PM' },
-    mapEmbedUrl: { type: String, default: '' },
+    id: { type: DataTypes.INTEGER, primaryKey: true, defaultValue: 1 },
+    siteName: { type: DataTypes.STRING, defaultValue: 'GameZone BD' },
+    logoUrl: { type: DataTypes.STRING, defaultValue: '' },
+    contactPhone: { type: DataTypes.STRING, defaultValue: '' },
+    contactEmail: { type: DataTypes.STRING, defaultValue: '' },
+    address: { type: DataTypes.TEXT, defaultValue: '' },
+    openingHours: { type: DataTypes.STRING, defaultValue: '10:00 AM – 11:00 PM' },
+    mapEmbedUrl: { type: DataTypes.TEXT, defaultValue: '' },
+    // JSON columns for nested / list content
     socialLinks: {
-      facebook: { type: String, default: '' },
-      instagram: { type: String, default: '' },
-      whatsapp: { type: String, default: '' },
+      type: DataTypes.JSON,
+      defaultValue: { facebook: '', instagram: '', whatsapp: '' },
     },
-    // CMS content
     hero: {
-      title: { type: String, default: 'Level Up Your Game at GameZone BD' },
-      subtitle: {
-        type: String,
-        default: 'Book PS5, PC, VR & Pool tables by the hour. Play. Compete. Win.',
+      type: DataTypes.JSON,
+      defaultValue: {
+        title: 'Level Up Your Game at GameZone BD',
+        subtitle: 'Book PS5, PC, VR & Pool tables by the hour. Play. Compete. Win.',
+        image: '',
+        ctaText: 'Book Now',
       },
-      image: { type: String, default: '' },
-      ctaText: { type: String, default: 'Book Now' },
     },
-    offers: [
-      {
-        title: { type: String, default: '' },
-        description: { type: String, default: '' },
-        image: { type: String, default: '' },
-      },
-    ],
-    testimonials: [
-      {
-        name: { type: String, default: '' },
-        message: { type: String, default: '' },
-        avatar: { type: String, default: '' },
-      },
-    ],
-    galleryImages: [{ type: String }],
+    offers: { type: DataTypes.JSON, defaultValue: [] },
+    testimonials: { type: DataTypes.JSON, defaultValue: [] },
+    galleryImages: { type: DataTypes.JSON, defaultValue: [] },
   },
-  { timestamps: true }
+  {
+    sequelize,
+    modelName: 'Settings',
+    tableName: 'settings',
+    timestamps: true,
+  }
 );
 
-// Convenience: always work with a single settings doc.
-settingsSchema.statics.getSingleton = async function () {
-  let doc = await this.findOne();
-  if (!doc) doc = await this.create({});
-  return doc;
-};
-
-const Settings = mongoose.model('Settings', settingsSchema);
 export default Settings;

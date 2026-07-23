@@ -16,7 +16,7 @@ It has two parts:
 | Frontend   | React (Vite), Tailwind CSS, Zustand, React Router      |
 | Charts     | Recharts                                               |
 | Backend    | Node.js, Express                                       |
-| Database   | MongoDB + Mongoose                                      |
+| Database   | MySQL + Sequelize ORM                                   |
 | Auth       | JWT + bcrypt, role-based (customer / staff / admin)    |
 | Uploads    | Local storage (MVP) — Cloudinary-ready                 |
 | Payments   | Mocked mark-as-paid flow — SSLCommerz / bKash-ready    |
@@ -41,13 +41,14 @@ game-zone/
 │           ├── AdminTournaments, AdminCustomers, AdminPayments
 │           └── AdminContent, AdminStaff, AdminSettings
 └── server/                     # Express backend
-    ├── models/                 # User, Station, Booking, Package, Tournament, Settings
+    ├── models/                 # Sequelize models + index.js (associations)
+    │                           #   User, Station, Booking, Package, Tournament, Settings
     ├── controllers/            # Route handlers
     ├── routes/                 # Express routers
     ├── middleware/             # auth.js, roleCheck.js, error.js, upload.js
-    ├── utils/                  # generateToken.js, timeSlots.js
-    ├── config/db.js            # Mongo connection
-    ├── app.js / server.js      # App wiring & bootstrap
+    ├── utils/                  # generateToken.js, timeSlots.js, serialize.js
+    ├── config/db.js            # Sequelize connection (MySQL / SQLite)
+    ├── app.js / server.js      # App wiring & bootstrap (syncs schema)
     └── seed.js                 # Seeds admin user + sample data
 ```
 
@@ -56,7 +57,15 @@ game-zone/
 ## Prerequisites
 
 - **Node.js** 18+ (tested on 22)
-- **MongoDB** running locally, or a MongoDB Atlas connection string
+- **MySQL** 5.7+ / 8+ running locally (or any managed MySQL such as PlanetScale/RDS)
+
+Create the database once before seeding:
+
+```sql
+CREATE DATABASE gamezone_bd CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
+
+Sequelize creates/updates the tables automatically on server start (`sequelize.sync`).
 
 ---
 
@@ -90,7 +99,13 @@ The Vite dev server proxies `/api` and `/uploads` to the backend on port 5000, s
 | ------------------- | ------------------------------------------------------ | ------------------------------------------ |
 | `PORT`              | API port                                               | `5000`                                     |
 | `NODE_ENV`          | `development` / `production`                           | `development`                              |
-| `MONGO_URI`         | MongoDB connection string                              | `mongodb://127.0.0.1:27017/gamezone_bd`    |
+| `DB_DIALECT`        | `mysql` (default) or `sqlite` (tests)                  | `mysql`                                    |
+| `DB_HOST`           | MySQL host                                             | `127.0.0.1`                                |
+| `DB_PORT`           | MySQL port                                             | `3306`                                     |
+| `DB_NAME`           | Database name                                          | `gamezone_bd`                              |
+| `DB_USER`           | MySQL user                                             | `root`                                     |
+| `DB_PASSWORD`       | MySQL password                                         | `secret`                                   |
+| `DB_SYNC_ALTER`     | Auto-ALTER tables to match models on start (dev)       | `false`                                    |
 | `JWT_SECRET`        | Secret for signing JWTs (use a long random string)     | `a_very_long_random_secret`                |
 | `JWT_EXPIRES_IN`    | Token lifetime                                         | `7d`                                       |
 | `ADMIN_NAME`        | Seed admin display name                                | `Super Admin`                              |

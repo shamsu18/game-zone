@@ -1,13 +1,17 @@
 import asyncHandler from 'express-async-handler';
-import Tournament from '../models/Tournament.js';
+import { Tournament, User } from '../models/index.js';
 
 // @desc    Get tournaments
 // @route   GET /api/tournaments
 // @access  Public
 export const getTournaments = asyncHandler(async (req, res) => {
-  const filter = {};
-  if (req.query.status) filter.status = req.query.status;
-  const tournaments = await Tournament.find(filter).sort({ date: 1 });
+  const where = {};
+  if (req.query.status) where.status = req.query.status;
+  const tournaments = await Tournament.findAll({
+    where,
+    order: [['date', 'ASC']],
+    include: [{ association: 'participants', attributes: ['id'], through: { attributes: [] } }],
+  });
   res.json(tournaments);
 });
 
@@ -15,10 +19,15 @@ export const getTournaments = asyncHandler(async (req, res) => {
 // @route   GET /api/tournaments/:id
 // @access  Public
 export const getTournament = asyncHandler(async (req, res) => {
-  const tournament = await Tournament.findById(req.params.id).populate(
-    'participants',
-    'name email phone'
-  );
+  const tournament = await Tournament.findByPk(req.params.id, {
+    include: [
+      {
+        association: 'participants',
+        attributes: ['id', 'name', 'email', 'phone'],
+        through: { attributes: [] },
+      },
+    ],
+  });
   if (!tournament) {
     res.status(404);
     throw new Error('Tournament not found');
@@ -38,15 +47,12 @@ export const createTournament = asyncHandler(async (req, res) => {
 // @route   PUT /api/tournaments/:id
 // @access  Admin/Staff
 export const updateTournament = asyncHandler(async (req, res) => {
-  const tournament = await Tournament.findByIdAndUpdate(
-    req.params.id,
-    req.body,
-    { new: true, runValidators: true }
-  );
+  const tournament = await Tournament.findByPk(req.params.id);
   if (!tournament) {
     res.status(404);
     throw new Error('Tournament not found');
   }
+  await tournament.update(req.body);
   res.json(tournament);
 });
 
@@ -54,11 +60,12 @@ export const updateTournament = asyncHandler(async (req, res) => {
 // @route   DELETE /api/tournaments/:id
 // @access  Admin/Staff
 export const deleteTournament = asyncHandler(async (req, res) => {
-  const tournament = await Tournament.findByIdAndDelete(req.params.id);
+  const tournament = await Tournament.findByPk(req.params.id);
   if (!tournament) {
     res.status(404);
     throw new Error('Tournament not found');
   }
+  await tournament.destroy();
   res.json({ message: 'Tournament deleted' });
 });
 
@@ -66,7 +73,7 @@ export const deleteTournament = asyncHandler(async (req, res) => {
 // @route   POST /api/tournaments/:id/register
 // @access  Private
 export const registerForTournament = asyncHandler(async (req, res) => {
-  const tournament = await Tournament.findById(req.params.id);
+  const tournament = await Tournament.findByPk(req.params.id);
   if (!tournament) {
     res.status(404);
     throw new Error('Tournament not found');
@@ -75,11 +82,17 @@ export const registerForTournament = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('This tournament has already finished');
   }
-  if (tournament.participants.some((p) => p.equals(req.user._id))) {
+
+  const already = await tournament.hasParticipant(req.user.id);
+  if (already) {
     res.status(400);
     throw new Error('You are already registered for this tournament');
   }
-  tournament.participants.push(req.user._id);
-  await tournament.save();
-  res.json({ message: 'Registered successfully', tournament });
+
+  await tournament.addParticipant(req.user.id);
+
+  const updated = await Tournament.findByPk(tournament.id, {
+    include: [{ association: 'participants', attributes: ['id'], through: { attributes: [] } }],
+  });
+  res.json({ message: 'Registered successfully', tournament: updated });
 });

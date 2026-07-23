@@ -1,17 +1,17 @@
 import asyncHandler from 'express-async-handler';
-import User from '../models/User.js';
-import Booking from '../models/Booking.js';
+import { Op } from 'sequelize';
+import { User, Booking } from '../models/index.js';
 
 // @desc    List customers
 // @route   GET /api/users/customers
 // @access  Admin/Staff
 export const getCustomers = asyncHandler(async (req, res) => {
-  const filter = { role: 'customer' };
+  const where = { role: 'customer' };
   if (req.query.search) {
-    const rx = new RegExp(req.query.search, 'i');
-    filter.$or = [{ name: rx }, { email: rx }, { phone: rx }];
+    const like = { [Op.like]: `%${req.query.search}%` };
+    where[Op.or] = [{ name: like }, { email: like }, { phone: like }];
   }
-  const customers = await User.find(filter).sort({ createdAt: -1 });
+  const customers = await User.findAll({ where, order: [['createdAt', 'DESC']] });
   res.json(customers);
 });
 
@@ -19,9 +19,11 @@ export const getCustomers = asyncHandler(async (req, res) => {
 // @route   GET /api/users/:id/bookings
 // @access  Admin/Staff
 export const getCustomerBookings = asyncHandler(async (req, res) => {
-  const bookings = await Booking.find({ user: req.params.id })
-    .populate('station', 'name type')
-    .sort({ date: -1 });
+  const bookings = await Booking.findAll({
+    where: { userId: req.params.id },
+    include: [{ association: 'station', attributes: ['id', 'name', 'type'] }],
+    order: [['date', 'DESC']],
+  });
   res.json(bookings);
 });
 
@@ -29,7 +31,7 @@ export const getCustomerBookings = asyncHandler(async (req, res) => {
 // @route   PATCH /api/users/:id/block
 // @access  Admin
 export const toggleBlockUser = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id);
+  const user = await User.findByPk(req.params.id);
   if (!user) {
     res.status(404);
     throw new Error('User not found');
@@ -49,7 +51,10 @@ export const toggleBlockUser = asyncHandler(async (req, res) => {
 // @route   GET /api/users/staff
 // @access  Admin
 export const getStaff = asyncHandler(async (req, res) => {
-  const staff = await User.find({ role: 'staff' }).sort({ createdAt: -1 });
+  const staff = await User.findAll({
+    where: { role: 'staff' },
+    order: [['createdAt', 'DESC']],
+  });
   res.json(staff);
 });
 
@@ -62,7 +67,7 @@ export const createStaff = asyncHandler(async (req, res) => {
     res.status(400);
     throw new Error('Name, email and password are required');
   }
-  const exists = await User.findOne({ email: email.toLowerCase() });
+  const exists = await User.findOne({ where: { email: email.toLowerCase() } });
   if (exists) {
     res.status(400);
     throw new Error('An account with this email already exists');
@@ -75,14 +80,15 @@ export const createStaff = asyncHandler(async (req, res) => {
     role: 'staff',
     permissions: permissions || ['bookings', 'stations', 'tournaments'],
   });
-  res.status(201).json(staff);
+  const safe = await User.findByPk(staff.id);
+  res.status(201).json(safe);
 });
 
 // @desc    Update a staff account (permissions / info)
 // @route   PUT /api/users/staff/:id
 // @access  Admin
 export const updateStaff = asyncHandler(async (req, res) => {
-  const staff = await User.findOne({ _id: req.params.id, role: 'staff' });
+  const staff = await User.findOne({ where: { id: req.params.id, role: 'staff' } });
   if (!staff) {
     res.status(404);
     throw new Error('Staff member not found');
@@ -100,10 +106,11 @@ export const updateStaff = asyncHandler(async (req, res) => {
 // @route   DELETE /api/users/staff/:id
 // @access  Admin
 export const deleteStaff = asyncHandler(async (req, res) => {
-  const staff = await User.findOneAndDelete({ _id: req.params.id, role: 'staff' });
+  const staff = await User.findOne({ where: { id: req.params.id, role: 'staff' } });
   if (!staff) {
     res.status(404);
     throw new Error('Staff member not found');
   }
+  await staff.destroy();
   res.json({ message: 'Staff account removed' });
 });

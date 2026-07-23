@@ -1,7 +1,6 @@
 import asyncHandler from 'express-async-handler';
-import Booking from '../models/Booking.js';
-import Station from '../models/Station.js';
-import User from '../models/User.js';
+import { Op } from 'sequelize';
+import { Booking, Station, User } from '../models/index.js';
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -17,7 +16,7 @@ const dateNDaysAgo = (n) => {
 export const getStats = asyncHandler(async (req, res) => {
   const today = todayStr();
 
-  const todaysBookings = await Booking.find({ date: today });
+  const todaysBookings = await Booking.findAll({ where: { date: today } });
   const todaysBookingsCount = todaysBookings.length;
 
   const todaysRevenue = todaysBookings
@@ -25,7 +24,7 @@ export const getStats = asyncHandler(async (req, res) => {
     .reduce((sum, b) => sum + b.totalPrice, 0);
 
   // Occupancy: booked hours today vs total available station-hours (13h window)
-  const activeStations = await Station.countDocuments({ status: 'active' });
+  const activeStations = await Station.count({ where: { status: 'active' } });
   const OPEN_HOURS = 13; // 10:00–23:00
   const bookedHours = todaysBookings
     .filter((b) => b.status !== 'cancelled')
@@ -37,7 +36,7 @@ export const getStats = asyncHandler(async (req, res) => {
   const capacity = activeStations * OPEN_HOURS;
   const occupancyRate = capacity > 0 ? Math.round((bookedHours / capacity) * 100) : 0;
 
-  const totalCustomers = await User.countDocuments({ role: 'customer' });
+  const totalCustomers = await User.count({ where: { role: 'customer' } });
 
   res.json({
     todaysBookingsCount,
@@ -53,9 +52,8 @@ export const getStats = asyncHandler(async (req, res) => {
 // @access  Admin/Staff
 export const getRevenue7d = asyncHandler(async (req, res) => {
   const start = dateNDaysAgo(6);
-  const bookings = await Booking.find({
-    date: { $gte: start },
-    paymentStatus: 'paid',
+  const bookings = await Booking.findAll({
+    where: { date: { [Op.gte]: start }, paymentStatus: 'paid' },
   });
 
   const days = [];

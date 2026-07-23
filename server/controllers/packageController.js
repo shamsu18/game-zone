@@ -1,16 +1,16 @@
 import asyncHandler from 'express-async-handler';
-import Package from '../models/Package.js';
+import { Package } from '../models/index.js';
 
 // @desc    Get packages (public sees active only)
 // @route   GET /api/packages
 // @access  Public
 export const getPackages = asyncHandler(async (req, res) => {
-  const filter = {};
+  const where = {};
   const isPrivileged = req.user && ['admin', 'staff'].includes(req.user.role);
   if (!isPrivileged || req.query.all !== 'true') {
-    filter.active = true;
+    where.active = true;
   }
-  const packages = await Package.find(filter).sort({ createdAt: -1 });
+  const packages = await Package.findAll({ where, order: [['createdAt', 'DESC']] });
   res.json(packages);
 });
 
@@ -18,7 +18,7 @@ export const getPackages = asyncHandler(async (req, res) => {
 // @route   GET /api/packages/:id
 // @access  Public
 export const getPackage = asyncHandler(async (req, res) => {
-  const pkg = await Package.findById(req.params.id);
+  const pkg = await Package.findByPk(req.params.id);
   if (!pkg) {
     res.status(404);
     throw new Error('Package not found');
@@ -38,14 +38,12 @@ export const createPackage = asyncHandler(async (req, res) => {
 // @route   PUT /api/packages/:id
 // @access  Admin/Staff
 export const updatePackage = asyncHandler(async (req, res) => {
-  const pkg = await Package.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
+  const pkg = await Package.findByPk(req.params.id);
   if (!pkg) {
     res.status(404);
     throw new Error('Package not found');
   }
+  await pkg.update(req.body);
   res.json(pkg);
 });
 
@@ -53,7 +51,7 @@ export const updatePackage = asyncHandler(async (req, res) => {
 // @route   PATCH /api/packages/:id/toggle-active
 // @access  Admin/Staff
 export const togglePackageActive = asyncHandler(async (req, res) => {
-  const pkg = await Package.findById(req.params.id);
+  const pkg = await Package.findByPk(req.params.id);
   if (!pkg) {
     res.status(404);
     throw new Error('Package not found');
@@ -67,10 +65,11 @@ export const togglePackageActive = asyncHandler(async (req, res) => {
 // @route   DELETE /api/packages/:id
 // @access  Admin/Staff
 export const deletePackage = asyncHandler(async (req, res) => {
-  const pkg = await Package.findByIdAndDelete(req.params.id);
+  const pkg = await Package.findByPk(req.params.id);
   if (!pkg) {
     res.status(404);
     throw new Error('Package not found');
   }
+  await pkg.destroy();
   res.json({ message: 'Package deleted' });
 });

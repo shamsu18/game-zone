@@ -9,23 +9,23 @@ export const errorHandler = (err, req, res, next) => {
   let statusCode = res.statusCode && res.statusCode !== 200 ? res.statusCode : 500;
   let message = err.message || 'Server Error';
 
-  // Mongoose bad ObjectId
-  if (err.name === 'CastError' && err.kind === 'ObjectId') {
-    statusCode = 404;
-    message = 'Resource not found';
-  }
-
-  // Mongoose duplicate key
-  if (err.code === 11000) {
+  // Sequelize unique constraint (duplicate) error
+  if (err.name === 'SequelizeUniqueConstraintError') {
     statusCode = 400;
-    const field = Object.keys(err.keyValue || {})[0] || 'field';
+    const field = err.errors?.[0]?.path || 'field';
     message = `A record with that ${field} already exists`;
   }
 
-  // Mongoose validation error
-  if (err.name === 'ValidationError') {
+  // Sequelize validation error
+  if (err.name === 'SequelizeValidationError') {
     statusCode = 400;
-    message = Object.values(err.errors).map((e) => e.message).join(', ');
+    message = (err.errors || []).map((e) => e.message).join(', ');
+  }
+
+  // Sequelize foreign key / database errors
+  if (err.name === 'SequelizeForeignKeyConstraintError') {
+    statusCode = 400;
+    message = 'Related record not found or still referenced';
   }
 
   res.status(statusCode).json({

@@ -1,17 +1,17 @@
 import asyncHandler from 'express-async-handler';
-import Booking from '../models/Booking.js';
+import { Booking } from '../models/index.js';
 
 // @desc    Initiate a payment for a booking.
 //          MVP: mock provider immediately returns a success URL.
 // @route   POST /api/payments/initiate/:bookingId
 // @access  Private (owner)
 export const initiatePayment = asyncHandler(async (req, res) => {
-  const booking = await Booking.findById(req.params.bookingId).populate('station');
+  const booking = await Booking.findByPk(req.params.bookingId, { include: [{ association: 'station' }] });
   if (!booking) {
     res.status(404);
     throw new Error('Booking not found');
   }
-  const isOwner = booking.user.equals(req.user._id);
+  const isOwner = booking.userId === req.user.id;
   const isPrivileged = ['admin', 'staff'].includes(req.user.role);
   if (!isOwner && !isPrivileged) {
     res.status(403);
@@ -25,13 +25,11 @@ export const initiatePayment = asyncHandler(async (req, res) => {
   const provider = process.env.PAYMENT_PROVIDER || 'mock';
 
   if (provider === 'mock') {
-    // In a mock flow the client is told to hit /confirm to simulate success.
     return res.json({
       provider: 'mock',
       amount: booking.totalPrice,
-      bookingId: booking._id,
-      // client can POST to this to "complete" payment
-      confirmUrl: `/api/payments/confirm/${booking._id}`,
+      bookingId: booking.id,
+      confirmUrl: `/api/payments/confirm/${booking.id}`,
       message: 'Mock payment session created. Confirm to mark as paid.',
     });
   }
@@ -48,12 +46,12 @@ export const initiatePayment = asyncHandler(async (req, res) => {
 // @route   POST /api/payments/confirm/:bookingId
 // @access  Private (owner)
 export const confirmPayment = asyncHandler(async (req, res) => {
-  const booking = await Booking.findById(req.params.bookingId);
+  const booking = await Booking.findByPk(req.params.bookingId);
   if (!booking) {
     res.status(404);
     throw new Error('Booking not found');
   }
-  const isOwner = booking.user.equals(req.user._id);
+  const isOwner = booking.userId === req.user.id;
   const isPrivileged = ['admin', 'staff'].includes(req.user.role);
   if (!isOwner && !isPrivileged) {
     res.status(403);
@@ -69,12 +67,16 @@ export const confirmPayment = asyncHandler(async (req, res) => {
 // @route   GET /api/payments
 // @access  Admin/Staff
 export const getPayments = asyncHandler(async (req, res) => {
-  const filter = {};
-  if (req.query.paymentStatus) filter.paymentStatus = req.query.paymentStatus;
-  const bookings = await Booking.find(filter)
-    .populate('station', 'name type')
-    .populate('user', 'name email phone')
-    .sort({ updatedAt: -1 });
+  const where = {};
+  if (req.query.paymentStatus) where.paymentStatus = req.query.paymentStatus;
+  const bookings = await Booking.findAll({
+    where,
+    include: [
+      { association: 'station', attributes: ['id', 'name', 'type'] },
+      { association: 'user', attributes: ['id', 'name', 'email', 'phone'] },
+    ],
+    order: [['updatedAt', 'DESC']],
+  });
   res.json(bookings);
 });
 
@@ -82,7 +84,7 @@ export const getPayments = asyncHandler(async (req, res) => {
 // @route   PATCH /api/payments/:bookingId/refund
 // @access  Admin
 export const refundPayment = asyncHandler(async (req, res) => {
-  const booking = await Booking.findById(req.params.bookingId);
+  const booking = await Booking.findByPk(req.params.bookingId);
   if (!booking) {
     res.status(404);
     throw new Error('Booking not found');
@@ -100,7 +102,7 @@ export const refundPayment = asyncHandler(async (req, res) => {
 // @route   PATCH /api/payments/:bookingId/mark-paid
 // @access  Admin/Staff
 export const markPaid = asyncHandler(async (req, res) => {
-  const booking = await Booking.findById(req.params.bookingId);
+  const booking = await Booking.findByPk(req.params.bookingId);
   if (!booking) {
     res.status(404);
     throw new Error('Booking not found');
