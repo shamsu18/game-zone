@@ -1,0 +1,53 @@
+# =====================================================================
+#  GameZone BD — local MySQL (zero-setup)
+#
+#  Start:   docker compose up -d
+#  Stop:    docker compose down            (data kept in the named volume)
+#  Reset:   docker compose down -v         (wipes the database volume)
+#
+#  On first start MySQL auto-imports server/database/gamezone_bd.sql, so the
+#  database, all tables, and seed data (admin + sample content) are ready.
+#
+#  Then in server/.env use:
+#    DB_HOST=127.0.0.1
+#    DB_PORT=3306
+#    DB_NAME=gamezone_bd
+#    DB_USER=gamezone
+#    DB_PASSWORD=gamezone_pass
+#
+#  Adminer (web DB GUI) is available at http://localhost:8080
+# =====================================================================
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: gamezone-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root_pass
+      MYSQL_DATABASE: gamezone_bd
+      MYSQL_USER: gamezone
+      MYSQL_PASSWORD: gamezone_pass
+    ports:
+      - '3306:3306'
+    volumes:
+      - gamezone_mysql_data:/var/lib/mysql
+      # Auto-run on first init (schema + seed data)
+      - ./server/database/gamezone_bd.sql:/docker-entrypoint-initdb.d/01-gamezone_bd.sql:ro
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-uroot', '-proot_pass']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Optional lightweight web UI for browsing the database
+  adminer:
+    image: adminer:4
+    container_name: gamezone-adminer
+    restart: unless-stopped
+    depends_on:
+      - mysql
+    ports:
+      - '8080:8080'
+
+volumes:
+  gamezone_mysql_data:

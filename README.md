@@ -48,8 +48,11 @@ game-zone/
     ├── middleware/             # auth.js, roleCheck.js, error.js, upload.js
     ├── utils/                  # generateToken.js, timeSlots.js, serialize.js
     ├── config/db.js            # Sequelize connection (MySQL / SQLite)
+    ├── database/               # gamezone_bd.sql — importable schema + seed data
     ├── app.js / server.js      # App wiring & bootstrap (syncs schema)
     └── seed.js                 # Seeds admin user + sample data
+
+docker-compose.yml               # One-command MySQL + Adminer with data pre-loaded
 ```
 
 ---
@@ -57,15 +60,55 @@ game-zone/
 ## Prerequisites
 
 - **Node.js** 18+ (tested on 22)
-- **MySQL** 5.7+ / 8+ running locally (or any managed MySQL such as PlanetScale/RDS)
+- **MySQL** 5.7+ / 8+ — either a local/managed server, or via the included Docker setup
 
-Create the database once before seeding:
+---
 
-```sql
-CREATE DATABASE gamezone_bd CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+## Database Setup
+
+The full database (schema + seed data) lives in **`server/database/gamezone_bd.sql`**.
+It creates the `gamezone_bd` database, all tables, and everything the app needs to
+run: an admin account, sample stations, packages, tournaments, and default site
+settings. Pick **one** of the options below.
+
+### Option A — Docker (zero setup, recommended)
+
+Spins up MySQL and imports the seed SQL automatically on first start:
+
+```bash
+docker compose up -d
 ```
 
-Sequelize creates/updates the tables automatically on server start (`sequelize.sync`).
+- MySQL runs on `localhost:3306` (db `gamezone_bd`, user `gamezone`, pass `gamezone_pass`)
+- Adminer (web DB GUI) at http://localhost:8080
+- `docker compose down -v` wipes the data and re-imports on next start
+
+Use these values in `server/.env`:
+
+```env
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_NAME=gamezone_bd
+DB_USER=gamezone
+DB_PASSWORD=gamezone_pass
+```
+
+### Option B — Existing MySQL server
+
+Import the SQL directly into your own MySQL:
+
+```bash
+mysql -u root -p < server/database/gamezone_bd.sql
+```
+
+Then set `DB_USER` / `DB_PASSWORD` in `server/.env` to your MySQL credentials.
+
+> **Note:** the running app also calls `sequelize.sync()` on startup, so it will
+> create any missing tables on its own. Importing the SQL is what gives you the
+> **seed data** (admin login + sample content) in one step. Alternatively, run
+> `npm run seed` (see below) against an empty database to generate the same data.
+
+Default admin login after either option: **`admin@gamezone.bd` / `admin1234`**
 
 ---
 
